@@ -1,96 +1,76 @@
-buildscript {
-    repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
-        jcenter()
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
-    }
-}
-apply plugin: 'net.minecraftforge.gradle'
-
-version = "2.14"
-group = "yalter.mousetweaks"
-archivesBaseName = "MouseTweaks"
-
-def minecraftVersion = "1.16.2" // Used for output JAR filenames.
-
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
-
-configurations {
-    // Make Minecraft classes visible from the API classes.
-    apiCompile.extendsFrom(compile)
+plugins {
+    id 'fabric-loom' version '0.6-SNAPSHOT'
+    id 'maven-publish'
 }
 
-sourceSets {
-    api
-    main {
-        // Make API classes visible from the main classes.
-        compileClasspath += sourceSets.api.output
-        runtimeClasspath += sourceSets.api.output
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
-        java {
-            exclude 'yalter/mousetweaks/forge/ConfigGui.java'
-            exclude 'yalter/mousetweaks/forge/ConfigGuiFactory.java'
-        }
-    }
-}
-
-minecraft {
-    mappings channel: 'snapshot', version: '20200514-1.16'
-
-    runs {
-        client {
-            workingDirectory project.file('run')
-
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-
-            mods {
-                mousetweaks {
-                    source sourceSets.main
-                }
-            }
-        }
-    }
-}
+archivesBaseName = project.archives_base_name
+version = project.mod_version
+group = project.maven_group
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.16.2-33.0.5'
+    compile fileTree(includes:['*.jar'], dir: 'libs')
+
+    minecraft "com.mojang:minecraft:1.16.2"
+    mappings "net.fabricmc:yarn:1.16.2+build.47:v2"
+    //mappings channel: 'snapshot', version: '20200514-1.16'
+    modImplementation "net.fabricmc:fabric-loader:0.11.6"
+
+    //Fabric api
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.36.0+1.16"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include "fabric.mod.json"
+        expand "version": project.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude "fabric.mod.json"
+    }
+}
+
+// ensure that the encoding is set to UTF-8, no matter what the system default is
+// this fixes some edge cases with special characters not displaying correctly
+// see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+// if it is present.
+// If you remove this task, sources will not be generated.
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = "sources"
+    from sourceSets.main.allSource
 }
 
 jar {
-    classifier = "mc${minecraftVersion}"
+    from "LICENSE"
+}
 
-    // Add API classes to the JAR.
-    from sourceSets.api.output.classesDirs
-
-    manifest {
-        attributes([
-            "Specification-Title": "Mouse Tweaks",
-            "Specification-Vendor": "YaLTeR",
-            "Specification-Version": "${version}",
-            "Implementation-Title": project.name,
-            "Implementation-Version": "${version}",
-            "Implementation-Vendor": "YaLTeR",
-            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
+// configure the maven publication
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            // add all the jars that should be included when publishing to maven
+            artifact(remapJar) {
+                builtBy remapJar
+            }
+            artifact(sourcesJar) {
+                builtBy remapSourcesJar
+            }
+        }
     }
-}
 
-task srcJar(type: Jar) {
-    classifier = "mc${minecraftVersion}-src"
-    from sourceSets.main.allJava
-    from sourceSets.api.allJava
-}
-
-task apiJar(type: Jar) {
-    classifier = "mc${minecraftVersion}-api"
-    from sourceSets.api.output
-}
-
-artifacts {
-    archives srcJar
-    archives apiJar
+    // select the repositories you want to publish to
+    repositories {
+        // uncomment to publish to the local maven
+        // mavenLocal()
+    }
 }

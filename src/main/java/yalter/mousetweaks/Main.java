@@ -1,12 +1,12 @@
 package yalter.mousetweaks;
 
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.inventory.ContainerScreen;
-import net.minecraft.client.gui.screen.inventory.CreativeScreen;
-import net.minecraft.client.util.InputMappings;
-import net.minecraft.inventory.container.Slot;
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
 import org.lwjgl.glfw.GLFW;
 import yalter.mousetweaks.api.IMTModGuiContainer3;
 import yalter.mousetweaks.api.IMTModGuiContainer3Ex;
@@ -19,7 +19,7 @@ import java.util.List;
 public class Main {
 	public static Config config;
 
-	private static Minecraft mc;
+	private static MinecraftClient mc;
 
 	private static IGuiScreenHandler handler = null;
 	private static boolean disableWheelForThisContainer = false;
@@ -36,9 +36,9 @@ public class Main {
 		if (initialized)
 			return;
 
-		mc = Minecraft.getInstance();
+		mc = MinecraftClient.getInstance();
 
-		config = new Config(mc.gameDir + File.separator + "config" + File.separator + "MouseTweaks.cfg");
+		config = new Config(mc.runDirectory + File.separator + "config" + File.separator + "MouseTweaks.cfg");
 		config.read();
 
 		Reflection.reflectGuiContainer();
@@ -101,7 +101,7 @@ public class Main {
 		oldSelectedSlot = selectedSlot;
 
 		// Stack that the player is currently "holding" on the mouse cursor.
-		ItemStack stackOnMouse = mc.player.inventory.getItemStack();
+		ItemStack stackOnMouse = mc.player.inventory.getCursorStack();
 
 		if (button == MouseButton.LEFT) {
 			// If the stack on mouse isn't empty, the vanilla LMB dragging mechanic is going to start. We don't want to
@@ -157,7 +157,7 @@ public class Main {
 			return;
 
 		// Return if we cannot put any more items into the slot.
-		if (selectedSlotStack.getCount() == selectedSlotStack.getMaxStackSize())
+		if (selectedSlotStack.getCount() == selectedSlotStack.getMaxCount())
 			return;
 
 		handler.clickSlot(selectedSlot, MouseButton.RIGHT, false);
@@ -217,7 +217,7 @@ public class Main {
 			return false;
 
 		// Stack that the player is currently "holding" on the mouse cursor.
-		ItemStack stackOnMouse = mc.player.inventory.getItemStack();
+		ItemStack stackOnMouse = mc.player.inventory.getCursorStack();
 
 		// At this point the mouse has just entered a new, non-ignored slot.
 
@@ -230,8 +230,8 @@ public class Main {
 			if (selectedSlotStack.isEmpty())
 				return false;
 
-			boolean shiftIsDown = InputMappings.isKeyDown(mc.getMainWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT)
-					|| InputMappings.isKeyDown(mc.getMainWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT);
+			boolean shiftIsDown = InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT)
+					|| InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT);
 
 			if (stackOnMouse.isEmpty()) {
 				// Shift-LMB drag without item.
@@ -258,7 +258,7 @@ public class Main {
 					// result in filling the slot with the maximum item count and leaving only the remaining items on
 					// the mouse, without any way to get the items back onto the mouse, which is not what we want for
 					// the LMB tweak.
-					if (stackOnMouse.getCount() + selectedSlotStack.getCount() > stackOnMouse.getMaxStackSize())
+					if (stackOnMouse.getCount() + selectedSlotStack.getCount() > stackOnMouse.getMaxCount())
 						return false;
 
 					// We need to click on the slot so that our item stack gets merged with it, and then click again to
@@ -338,7 +338,7 @@ public class Main {
 			return true;
 
 		// Stack that the player is currently "holding" on the mouse cursor.
-		ItemStack stackOnMouse = mc.player.inventory.getItemStack();
+		ItemStack stackOnMouse = mc.player.inventory.getCursorStack();
 
 		// Scrolling over a crafting output slot requires special handling as those slots behave differently.
 		if (handler.isCraftingOutput(selectedSlot)) {
@@ -371,7 +371,7 @@ public class Main {
 							handler.clickSlot(slot, MouseButton.LEFT, false);
 						} else {
 							// Otherwise right click the needed number of times.
-                            int clickTimes = slot.getStack().getMaxStackSize() - slot.getStack().getCount();
+                            int clickTimes = slot.getStack().getMaxCount() - slot.getStack().getCount();
 							while (clickTimes-- > 0)
 								handler.clickSlot(slot, MouseButton.RIGHT, false);
 						}
@@ -392,7 +392,7 @@ public class Main {
 
         if (pushItems) {
 			// If the stack on mouse isn't empty, it should be possible to put it into the selected slot.
-			if (!stackOnMouse.isEmpty() && !selectedSlot.isItemValid(stackOnMouse))
+			if (!stackOnMouse.isEmpty() && !selectedSlot.canInsert(stackOnMouse))
 				return true;
 
         	// Clip the number of items to move by the available item count.
@@ -416,7 +416,7 @@ public class Main {
 				//
 				// Can't do the last slot left click optimization, because we usually want to move less items (1) than
 				// the whole available stack.
-				int clickTimes = slot.getStack().getMaxStackSize() - slot.getStack().getCount();
+				int clickTimes = slot.getStack().getMaxCount() - slot.getStack().getCount();
 				clickTimes = Math.min(clickTimes, numItemsToMove);
 				numItemsToMove -= clickTimes;
 
@@ -434,7 +434,7 @@ public class Main {
 
         // Handle pulling items.
         // Clip the number of items to move by the maximum item count that would fit in the slot.
-        int maxItemsToMove = selectedSlotStack.getMaxStackSize() - selectedSlotStack.getCount();
+        int maxItemsToMove = selectedSlotStack.getMaxCount() - selectedSlotStack.getCount();
 		numItemsToMove = Math.min(numItemsToMove, maxItemsToMove);
 
         while (numItemsToMove > 0) {
@@ -461,7 +461,7 @@ public class Main {
 				numItemsToMove = Math.min(numItemsToMove - 1, maxItemsToMove);
 
 				// If the stack on mouse isn't empty, it should be possible to put it into the selected slot.
-				if (!stackOnMouse.isEmpty() && !selectedSlot.isItemValid(stackOnMouse))
+				if (!stackOnMouse.isEmpty() && !selectedSlot.canInsert(stackOnMouse))
 					break;
 
 				// Click the selected slot to put down the possibly non-empty stack on mouse and pick up the items.
@@ -482,7 +482,7 @@ public class Main {
 			numItemsToMove -= numItemsToMoveFromTargetSlot;
 
 			// If the stack on mouse isn't empty, it should be possible to put it into the target slot.
-			if (!stackOnMouse.isEmpty() && !targetSlot.isItemValid(stackOnMouse))
+			if (!stackOnMouse.isEmpty() && !targetSlot.canInsert(stackOnMouse))
 				break;
 
 			// Click the target slot to pick up the items and put the items on mouse there.
@@ -513,7 +513,7 @@ public class Main {
 		boolean selectedIsInPlayerInventory = selectedSlot.inventory == mc.player.inventory;
 		for (Slot slot : slots) {
 			if ((slot.inventory == mc.player.inventory) != selectedIsInPlayerInventory
-			    && slot.yPos < selectedSlot.yPos) {
+			    && slot.y < selectedSlot.y) {
 				return true;
 			}
 		}
@@ -526,10 +526,10 @@ public class Main {
 			return new IMTModGuiContainer3ExHandler((IMTModGuiContainer3Ex) currentScreen);
 		} else if (currentScreen instanceof IMTModGuiContainer3) {
 			return new IMTModGuiContainer3Handler((IMTModGuiContainer3) currentScreen);
-		} else if (currentScreen instanceof CreativeScreen) {
-			return new GuiContainerCreativeHandler((CreativeScreen) currentScreen);
-		} else if (currentScreen instanceof ContainerScreen) {
-			return new GuiContainerHandler((ContainerScreen) currentScreen);
+		} else if (currentScreen instanceof CreativeInventoryScreen) {
+			return new GuiContainerCreativeHandler((CreativeInventoryScreen) currentScreen);
+		} else if (currentScreen instanceof HandledScreen) {
+			return new GuiContainerHandler((HandledScreen) currentScreen);
 		}
 
 		return null;
@@ -538,7 +538,7 @@ public class Main {
 	// Returns true if we can put items from one stack into another.
 	// This is different from ItemStack.areItemsEqual() because here empty stacks are compatible with anything.
 	private static boolean areStacksCompatible(ItemStack a, ItemStack b) {
-		return a.isEmpty() || b.isEmpty() || (a.isItemEqual(b) && ItemStack.areItemStackTagsEqual(a, b));
+		return a.isEmpty() || b.isEmpty() || (a.isItemEqualIgnoreDamage(b) && ItemStack.areTagsEqual(a, b));
 	}
 
 	/**
@@ -624,14 +624,14 @@ public class Main {
 
 			if (stack.isEmpty()) {
 			    // Empty slots need to be able to accept the target item.
-				if (slot.isItemValid(selectedSlotStack)) {
+				if (slot.canInsert(selectedSlotStack)) {
                     goodEmptySlots.add(slot);
 				}
 			} else {
 			    // Non-empty slots should have a compatible stack, not maxed out.
-				if (areStacksCompatible(selectedSlotStack, stack) && stack.getCount() < stack.getMaxStackSize()) {
+				if (areStacksCompatible(selectedSlotStack, stack) && stack.getCount() < stack.getMaxCount()) {
 					rv.add(slot);
-					itemCount -= Math.min(itemCount, stack.getMaxStackSize() - stack.getCount());
+					itemCount -= Math.min(itemCount, stack.getMaxCount() - stack.getCount());
 				}
 			}
 		}
@@ -640,7 +640,7 @@ public class Main {
 		for (int i = 0; i != goodEmptySlots.size() && itemCount > 0; i++) {
 		    Slot slot = goodEmptySlots.get(i);
 		    rv.add(slot);
-		    itemCount -= Math.min(itemCount, slot.getStack().getMaxStackSize() - slot.getStack().getCount());
+		    itemCount -= Math.min(itemCount, slot.getStack().getMaxCount() - slot.getStack().getCount());
 		}
 
 		// If we were unable to distribute all items as requested, return null.

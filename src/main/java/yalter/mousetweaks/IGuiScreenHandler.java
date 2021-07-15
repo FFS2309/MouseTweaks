@@ -1,8 +1,7 @@
 package yalter.mousetweaks;
 
-import net.minecraft.inventory.container.Slot;
-
 import java.util.List;
+import net.minecraft.screen.slot.Slot;
 
 public interface IGuiScreenHandler {
 	boolean isMouseTweaksDisabled();

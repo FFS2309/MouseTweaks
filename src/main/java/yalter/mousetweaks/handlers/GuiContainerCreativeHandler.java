@@ -1,10 +1,10 @@
 package yalter.mousetweaks.handlers;
 
-import net.minecraft.client.gui.screen.inventory.CreativeScreen;
-import net.minecraft.inventory.container.Slot;
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen;
+import net.minecraft.screen.slot.Slot;
 
 public class GuiContainerCreativeHandler extends GuiContainerHandler {
-	public GuiContainerCreativeHandler(CreativeScreen guiContainerCreative) {
+	public GuiContainerCreativeHandler(CreativeInventoryScreen guiContainerCreative) {
 		super(guiContainerCreative);
 	}
 

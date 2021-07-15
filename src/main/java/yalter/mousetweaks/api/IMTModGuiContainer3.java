@@ -1,7 +1,7 @@
 package yalter.mousetweaks.api;
 
-import net.minecraft.inventory.container.Container;
-import net.minecraft.inventory.container.Slot;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.Slot;
 
 /**
  * This is the interface you want to implement in your GuiScreen to make it compatible with Mouse Tweaks.
@@ -33,7 +33,7 @@ public interface IMTModGuiContainer3 {
 	 *
 	 * @return Container that is currently in use.
 	 */
-	Container MT_getContainer();
+	ScreenHandler MT_getContainer();
 
 	/**
 	 * Returns the Slot located under the given mouse coordinates, or null if no Slot is selected.
